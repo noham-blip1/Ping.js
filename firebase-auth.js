@@ -42,6 +42,6 @@ if (loginForm) {
 // Redirection si déjà connecté
 onAuthStateChanged(auth, (user) => {
   if (user && window.location.pathname.endsWith("login.html")) {
-    window.location.href = "index.html";
+    window.location.href = "page.html";
   }
 });
