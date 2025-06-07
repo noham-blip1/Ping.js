@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Snake 🐍 (IA avancée + Bonus Invincible)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body { background: #222; color: #eee; font-family: Arial, sans-serif; display: flex; flex-direction: column; align-items: center; margin: 0; height: 100vh; justify-content: center;}
+    h1 { margin-bottom: 8px; }
+    #score { margin-bottom: 8px; }
+    canvas { background: #111; box-shadow: 0 0 12px #333; border: 2px solid #444; display: block; touch-action: none;}
+    #game-over { color: #ff3333; margin-top: 12px; font-size: 1.3em; display: none; text-align: center;}
+    #alert-enemy { color: #ffb200; margin-top: 10px; font-size: 1.1em; display: none; background: #381a00; padding: 8px 20px; border-radius: 10px; border: 2px solid #ffb200; font-weight: bold; animation: flash 1.2s infinite alternate;}
+    #invincible-bar { display: none; margin: 10px 0 5px 0; width: 300px; max-width: 90vw; height: 18px; background: #333; border-radius: 9px; overflow: hidden; border: 2px solid #f2e85f; position: relative;}
+    #invincible-bar-inner { width: 0%; height: 100%; background: linear-gradient(90deg, #ffe259 0%, #ffa751 100%); transition: width 0.2s;}
+    #invincible-bar-label { font-size: 1em; color: #f2e85f; font-weight: bold; position: absolute; left: 50%; top: 1px; transform: translateX(-50%); text-shadow: 1px 1px 2px #000;}
+    @keyframes flash { from { opacity: 1; } to   { opacity: 0.6; } }
+    .controls { display: flex; flex-direction: column; align-items: center; margin-top: 18px; gap: 10px; user-select: none; -webkit-user-select: none;}
+    .row { display: flex; gap: 18px; justify-content: center;}
+    .btn { width: 60px; height: 60px; border-radius: 15px; border: none; background: #444; color: #fff; font-size: 2em; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 8px #222a; transition: background 0.15s; touch-action: manipulation; outline: none; cursor: pointer; user-select: none;}
+    .btn:active { background: #2ecf55; color: #222;}
+    @media (max-width: 480px) {
+      canvas { width: 95vw !important; height: 95vw !important; max-width: 95vw !important; max-height: 95vw !important;}
+      #invincible-bar { width: 95vw; }
+      .btn { width: 46px; height: 46px; font-size: 1.5em; }
+    }
+  </style>
+</head>
+<body>
+  <h1>Snake 🐍</h1>
+  <div id="score">Score : 0</div>
+  <div id="invincible-bar">
+    <div id="invincible-bar-inner"></div>
+    <span id="invincible-bar-label"></span>
+  </div>
+  <canvas id="game" width="400" height="400"></canvas>
+  <div id="game-over">Game Over !<br>Appuie sur Espace<br>ou touche une flèche pour recommencer</div>
+  <div id="alert-enemy">⚠️ Attention, ennemi en approche !</div>
+  <div class="controls">
+    <div class="row">
+      <button class="btn" id="btn-up" aria-label="Haut">▲</button>
+    </div>
+    <div class="row">
+      <button class="btn" id="btn-left" aria-label="Gauche">◀️</button>
+      <button class="btn" id="btn-down" aria-label="Bas">▼</button>
+      <button class="btn" id="btn-right" aria-label="Droite">▶️</button>
+    </div>
+  </div>
+  <script>
+    // --- Variables du jeu
+    const canvas = document.getElementById('game');
+    const ctx = canvas.getContext('2d');
+    const scoreDiv = document.getElementById('score');
+    const gameOverDiv = document.getElementById('game-over');
+    const alertEnemyDiv = document.getElementById('alert-enemy');
+    const btnUp = document.getElementById('btn-up');
+    const btnDown = document.getElementById('btn-down');
+    const btnLeft = document.getElementById('btn-left');
+    const btnRight = document.getElementById('btn-right');
+    const invBar = document.getElementById('invincible-bar');
+    const invBarInner = document.getElementById('invincible-bar-inner');
+    const invBarLabel = document.getElementById('invincible-bar-label');
+
+    const gridSize = 20;
+    let tileCount = canvas.width / gridSize;
+    let snake, food, direction, nextDirection, score, gameOver, interval, growCounter;
+    let invincible = false, invincibleEnd = 0, invincibleTimer = null;
+
+    // --- Bonus Invincible
+    let bonusActive = false;
+    let bonus = {x:0, y:0};
+    let bonusAppearScore = 7; // Premier bonus à 7 points, puis tous les 12 points
+
+    // --- Ennemi IA
+    let enemyActive = false;
+    let enemySnake = [];
+    let enemyGrowCounter = 0;
+
+    function init() {
+      tileCount = Math.floor(canvas.width / gridSize);
+      snake = [
+        { x: 8, y: 10 },
+        { x: 7, y: 10 },
+        { x: 6, y: 10 }
+      ];
+      direction = 'RIGHT';
+      nextDirection = direction;
+      placeFood();
+      score = 0;
+      growCounter = 0;
+      gameOver = false;
+      enemyActive = false;
+      enemySnake = [];
+      enemyGrowCounter = 0;
+      bonusActive = false;
+      bonusAppearScore = 7;
+      invincible = false;
+      clearInterval(interval);
+      clearInvincible();
+      scoreDiv.textContent = 'Score : 0';
+      gameOverDiv.style.display = 'none';
+      alertEnemyDiv.style.display = 'none';
+      invBar.style.display = 'none';
+      interval = setInterval(gameLoop, 120);
+    }
+
+    function placeFood() {
+      while (true) {
+        food = {
+          x: Math.floor(Math.random() * tileCount),
+          y: Math.floor(Math.random() * tileCount)
+        };
+        if (!snake.some(segment => segment.x === food.x && segment.y === food.y)
+          && (!enemyActive || !enemySnake.some(seg=>seg.x===food.x && seg.y===food.y))
+          && (!bonusActive || (bonus.x !== food.x || bonus.y !== food.y))
+        ) break;
+      }
+    }
+
+    function placeBonus() {
+      while (true) {
+        let bx = Math.floor(Math.random() * tileCount),
+            by = Math.floor(Math.random() * tileCount);
+        if (!snake.some(segment => segment.x === bx && segment.y === by)
+          && (!enemyActive || !enemySnake.some(seg=>seg.x===bx && seg.y===by))
+          && (food.x !== bx || food.y !== by)
+        ) {
+          bonus.x = bx; bonus.y = by;
+          bonusActive = true;
+          break;
+        }
+      }
+    }
+
+    function drawRect(x, y, color, round=false) {
+      ctx.save();
+      if (round) {
+        ctx.beginPath();
+        ctx.arc(x*gridSize+gridSize/2, y*gridSize+gridSize/2, gridSize/2-2, 0, 2*Math.PI);
+        ctx.fillStyle = color;
+        ctx.fill();
+      } else {
+        ctx.fillStyle = color;
+        ctx.fillRect(x * gridSize, y * gridSize, gridSize - 2, gridSize - 2);
+      }
+      ctx.restore();
+    }
+
+    function gameLoop() {
+      direction = nextDirection;
+      const head = { ...snake[0] };
+      switch (direction) {
+        case 'LEFT': head.x -= 1; break;
+        case 'UP': head.y -= 1; break;
+        case 'RIGHT': head.x += 1; break;
+        case 'DOWN': head.y += 1; break;
+      }
+
+      // Collision mur ou soi-même
+      if (
+        head.x < 0 || head.x >= tileCount ||
+        head.y < 0 || head.y >= tileCount ||
+        snake.some(segment => segment.x === head.x && segment.y === head.y)
+      ) {
+        if (!invincible) return endGame();
+      }
+
+      // Collision avec ennemi sur TOUT le corps du joueur
+      if (enemyActive && enemySnake.some(en => snake.some(seg => seg.x === en.x && seg.y === en.y))) {
+        if (!invincible) return endGame();
+      }
+
+      snake.unshift(head);
+
+      // Mange la pomme
+      if (head.x === food.x && head.y === food.y) {
+        score++;
+        scoreDiv.textContent = 'Score : ' + score;
+        placeFood();
+        growCounter++;
+        if (growCounter === 3) {
+          growCounter = 0;
+        } else {
+          snake.pop();
+        }
+        // Bonus apparaît à certains scores
+        if (score >= bonusAppearScore && !bonusActive) {
+          placeBonus();
+          bonusAppearScore += 12;
+        }
+      } else if (bonusActive && head.x === bonus.x && head.y === bonus.y) {
+        // Ramasse le bonus
+        activateInvincible(10);
+        bonusActive = false;
+        snake.pop();
+      } else {
+        snake.pop();
+      }
+
+      // Ennemi apparaît à 10 points
+      if (!enemyActive && score >= 10) {
+        showEnemyAlert();
+        enemyActive = true;
+        // Position initiale loin du joueur
+        let ex = tileCount-3, ey = tileCount-3;
+        if(snake[0].x > tileCount/2 && snake[0].y > tileCount/2) { ex = 2; ey = 2; }
+        enemySnake = [
+          { x: ex, y: ey },
+          { x: ex+1, y: ey }
+        ];
+        enemyGrowCounter = 0;
+      }
+
+      // IA avancée pour l'ennemi
+      if (enemyActive) {
+        moveEnemySmart();
+      }
+
+      // Rendu
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      // Pomme
+      drawRect(food.x, food.y, "#ff3333", true);
+      // Bonus
+      if (bonusActive) drawRect(bonus.x, bonus.y, "#ffe259", true);
+      // Ennemi rouge
+      if (enemyActive) {
+        enemySnake.forEach((seg, i) =>
+          drawRect(seg.x, seg.y, i === 0 ? "#ff2222" : "#d94c4c")
+        );
+      }
+      // Joueur vert (tête en cyan si invincible)
+      snake.forEach((segment, i) =>
+        drawRect(segment.x, segment.y, i === 0 ? (invincible ? "#2cf3ff" : "#00ff55") : (invincible ? "#63f5ff" : "#44ee99"))
+      );
+      // Barre invincibilité
+      updateInvincibleBar();
+    }
+
+    // IA améliorée (A* + anticipation sur la tête)
+    function moveEnemySmart() {
+      if (!enemySnake.length) return;
+      let grid = Array.from({length:tileCount},()=>Array(tileCount).fill(0));
+      // Marque tout ce qui est occupé comme obstacle
+      snake.forEach(seg=>{
+        if (seg.x >= 0 && seg.x < tileCount && seg.y >= 0 && seg.y < tileCount)
+          grid[seg.x][seg.y]=1;
+      });
+      for (let i = 1; i < enemySnake.length; i++) {
+        let seg = enemySnake[i];
+        if (seg.x >= 0 && seg.x < tileCount && seg.y >= 0 && seg.y < tileCount)
+          grid[seg.x][seg.y]=1;
+      }
+      // Si le joueur est invincible, l'ennemi fuit un peu (va vers le coin opposé)
+      let goal;
+      if (invincible) {
+        goal = (snake[0].x < tileCount/2 && snake[0].y < tileCount/2) ? {x:tileCount-1,y:tileCount-1} : {x:0,y:0};
+      } else {
+        goal = {x: snake[0].x, y: snake[0].y};
+      }
+      let path = astar(enemySnake[0], goal, grid, tileCount, tileCount);
+      let newHead;
+      if (path && path.length > 1) {
+        newHead = path[1];
+      } else {
+        // Pas de chemin trouvé, IA tente d'aller vers une case libre
+        let dirs = [{x:1,y:0},{x:-1,y:0},{x:0,y:1},{x:0,y:-1}];
+        for (let d of dirs) {
+          let nx=enemySnake[0].x+d.x, ny=enemySnake[0].y+d.y;
+          if(nx>=0 && ny>=0 && nx<tileCount && ny<tileCount && !grid[nx][ny]) {
+            newHead = {x:nx, y:ny};
+            break;
+          }
+        }
+        if (!newHead) return; // Bloqué
+      }
+      enemySnake.unshift({x:newHead.x, y:newHead.y});
+      // Ennemi grandit tous les 4 pommes du joueur
+      if (score > 10 && score % 4 === 0 && enemyGrowCounter < Math.floor(score/4)) {
+        enemyGrowCounter++;
+      } else {
+        enemySnake.pop();
+      }
+    }
+
+    // Algorithme A* (grille, pas de diagonale)
+    function astar(start, goal, grid, width, height) {
+      function h(p) { return Math.abs(p.x-goal.x)+Math.abs(p.y-goal.y);}
+      let open=[{x:start.x,y:start.y,g:0,h:h(start),parent:null}], closed=new Set();
+      let key=(p)=>p.x+','+p.y;
+      let dirs = [{x:1,y:0},{x:-1,y:0},{x:0,y:1},{x:0,y:-1}];
+      while(open.length) {
+        open.sort((a,b)=>(a.g+a.h)-(b.g+b.h));
+        let curr = open.shift();
+        if (curr.x===goal.x && curr.y===goal.y) {
+          let path=[], node=curr;
+          while(node) { path.unshift({x:node.x,y:node.y}); node=node.parent;}
+          return path;
+        }
+        closed.add(key(curr));
+        for (let d of dirs) {
+          let nx=curr.x+d.x,ny=curr.y+d.y;
+          if (nx<0||nx>=width||ny<0||ny>=height) continue;
+          if (grid[nx][ny]) continue;
+          let next={x:nx,y:ny,g:curr.g+1,h:h({x:nx, y:ny}),parent:curr};
+          if (closed.has(key(next))) continue;
+          if (!open.some(n=>n.x===next.x&&n.y===next.y&&n.g<=next.g)) open.push(next);
+        }
+      }
+      return null; // Pas de chemin trouvé
+    }
+
+    // --- BONUS INVINCIBLE ---
+    function activateInvincible(seconds) {
+      invincible = true;
+      invincibleEnd = Date.now() + seconds*1000;
+      invBar.style.display = 'block';
+      updateInvincibleBar();
+      if (invincibleTimer) clearInterval(invincibleTimer);
+      invincibleTimer = setInterval(() => {
+        updateInvincibleBar();
+        if (Date.now() >= invincibleEnd) clearInvincible();
+      }, 100);
+    }
+    function clearInvincible() {
+      invincible = false;
+      invBar.style.display = 'none';
+      if (invincibleTimer) clearInterval(invincibleTimer);
+      invincibleTimer = null;
+    }
+    function updateInvincibleBar() {
+      if (!invincible) {
+        invBar.style.display = 'none';
+        return;
+      }
+      invBar.style.display = 'block';
+      let remain = Math.max(0, invincibleEnd-Date.now());
+      let percent = remain / 10000 * 100;
+      invBarInner.style.width = percent+"%";
+      invBarLabel.textContent = "INVINCIBLE : " + (remain/1000).toFixed(1) + "s";
+      if (remain <= 0) clearInvincible();
+    }
+
+    function endGame() {
+      clearInterval(interval);
+      clearInvincible();
+      gameOver = true;
+      gameOverDiv.style.display = 'block';
+    }
+
+    function showEnemyAlert() {
+      alertEnemyDiv.style.display = 'block';
+      setTimeout(()=>{ alertEnemyDiv.style.display = 'none'; }, 2500);
+    }
+
+    // Contrôles clavier
+    document.addEventListener('keydown', e => {
+      if (gameOver && (e.code === 'Space' || isArrowKey(e.key))) {
+        init();
+      }
+      if (gameOver) return;
+      let newDir;
+      switch (e.key) {
+        case 'ArrowLeft': case 'a': case 'A': newDir = 'LEFT'; break;
+        case 'ArrowUp':   case 'w': case 'W': newDir = 'UP'; break;
+        case 'ArrowRight':case 'd': case 'D': newDir = 'RIGHT'; break;
+        case 'ArrowDown': case 's': case 'S': newDir = 'DOWN'; break;
+      }
+      setDirection(newDir);
+    });
+
+    // Boutons tactiles
+    btnUp.addEventListener('touchstart', e => { e.preventDefault(); handleTouch('UP'); });
+    btnDown.addEventListener('touchstart', e => { e.preventDefault(); handleTouch('DOWN'); });
+    btnLeft.addEventListener('touchstart', e => { e.preventDefault(); handleTouch('LEFT'); });
+    btnRight.addEventListener('touchstart', e => { e.preventDefault(); handleTouch('RIGHT'); });
+
+    btnUp.addEventListener('click', () => handleTouch('UP'));
+    btnDown.addEventListener('click', () => handleTouch('DOWN'));
+    btnLeft.addEventListener('click', () => handleTouch('LEFT'));
+    btnRight.addEventListener('click', () => handleTouch('RIGHT'));
+
+    function handleTouch(dir) {
+      if (gameOver) {
+        init();
+      }
+      setDirection(dir);
+    }
+
+    function setDirection(newDir) {
+      if (!newDir) return;
+      if (
+        (direction === 'LEFT'  && newDir !== 'RIGHT') ||
+        (direction === 'RIGHT' && newDir !== 'LEFT') ||
+        (direction === 'UP'    && newDir !== 'DOWN') ||
+        (direction === 'DOWN'  && newDir !== 'UP')
+      ) {
+        nextDirection = newDir;
+      }
+    }
+
+    function isArrowKey(key) {
+      return ['ArrowLeft', 'ArrowUp', 'ArrowRight', 'ArrowDown'].includes(key);
+    }
+
+    // --- RESIZE POUR MOBILE ---
+    function resizeCanvas() {
+      if (window.innerWidth < 500) {
+        let size = Math.min(window.innerWidth, window.innerHeight * 0.6, 400);
+        canvas.width = size;
+        canvas.height = size;
+      } else {
+        canvas.width = 400;
+        canvas.height = 400;
+      }
+      tileCount = Math.floor(canvas.width / gridSize);
+    }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    init();
+  </script>
+</body>
+</html>

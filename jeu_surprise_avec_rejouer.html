@@ -1,0 +1,65 @@
+
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jeu Surprise</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin-top: 50px;
+            background-color: #f0f0f0;
+        }
+        h1 {
+            color: #333;
+        }
+        input, button {
+            padding: 10px;
+            margin: 10px;
+        }
+        #message {
+            margin-top: 20px;
+            font-size: 18px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Bienvenue au Jeu Surprise !</h1>
+    <p>Devine le nombre entre 1 et 100.</p>
+    <input type="number" id="guess" min="1" max="100">
+    <button onclick="checkGuess()">Deviner</button>
+    <button onclick="resetGame()">Rejouer</button>
+    <p id="message"></p>
+
+    <script>
+        let randomNumber = Math.floor(Math.random() * 100) + 1;
+        
+        function checkGuess() {
+            const guess = parseInt(document.getElementById('guess').value);
+            const message = document.getElementById('message');
+
+            if (isNaN(guess) || guess < 1 || guess > 100) {
+                message.textContent = 'Veuillez entrer un nombre valide entre 1 et 100.';
+                message.style.color = 'red';
+            } else if (guess < randomNumber) {
+                message.textContent = 'Trop bas ! Essayez encore.';
+                message.style.color = 'blue';
+            } else if (guess > randomNumber) {
+                message.textContent = 'Trop haut ! Essayez encore.';
+                message.style.color = 'blue';
+            } else {
+                message.textContent = 'Félicitations ! Vous avez deviné le bon nombre.';
+                message.style.color = 'green';
+            }
+        }
+
+        function resetGame() {
+            randomNumber = Math.floor(Math.random() * 100) + 1;
+            document.getElementById('guess').value = '';
+            document.getElementById('message').textContent = '';
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jeu de Ping Pong</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #000;
+            overflow: hidden;
+        }
+        canvas {
+            border: 2px solid #fff;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="pong"></canvas>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const canvas = document.getElementById('pong');
+            if (!canvas) return;
+
+            canvas.width = 800;
+            canvas.height = 500;
+
+            const ctx = canvas.getContext('2d');
+
+            const paddleWidth = 12, paddleHeight = 100, ballSize = 16;
+
+            const player = {
+                x: 20,
+                y: (canvas.height - paddleHeight) / 2,
+                width: paddleWidth,
+                height: paddleHeight,
+                color: "#4CAF50"
+            };
+
+            const ai = {
+                x: canvas.width - paddleWidth - 20,
+                y: (canvas.height - paddleHeight) / 2,
+                width: paddleWidth,
+                height: paddleHeight,
+                color: "#F44336"
+            };
+
+            const ball = {
+                x: (canvas.width - ballSize) / 2,
+                y: (canvas.height - ballSize) / 2,
+                size: ballSize,
+                speed: 5,
+                dx: 5,
+                dy: 5,
+                color: "#FFD600"
+            };
+
+            let playerScore = 0;
+            let aiScore = 0;
+            const winningScore = 10;
+            let gameOver = false;
+
+            function drawRect(x, y, w, h, color) {
+                ctx.fillStyle = color;
+                ctx.fillRect(x, y, w, h);
+            }
+
+            function drawCircle(x, y, r, color) {
+                ctx.fillStyle = color;
+                ctx.beginPath();
+                ctx.arc(x, y, r, 0, Math.PI * 2, false);
+                ctx.closePath();
+                ctx.fill();
+            }
+
+            function drawNet() {
+                ctx.strokeStyle = "#fff";
+                for (let i = 0; i < canvas.height; i += 30) {
+                    ctx.beginPath();
+                    ctx.moveTo(canvas.width / 2, i);
+                    ctx.lineTo(canvas.width / 2, i + 20);
+                    ctx.stroke();
+                }
+            }
+
+            function drawText(text, x, y, color, size = "48px") {
+                ctx.fillStyle = color;
+                ctx.font = size + " Arial";
+                ctx.fillText(text, x, y);
+            }
+
+            function draw() {
+                drawRect(0, 0, canvas.width, canvas.height, "#222");
+                drawNet();
+
+                drawRect(player.x, player.y, player.width, player.height, player.color);
+                drawRect(ai.x, ai.y, ai.width, ai.height, ai.color);
+
+                drawCircle(ball.x + ball.size / 2, ball.y + ball.size / 2, ball.size / 2, ball.color);
+
+                drawText(playerScore.toString(), canvas.width / 4, 50, "#fff");
+                drawText(aiScore.toString(), 3 * canvas.width / 4, 50, "#fff");
+
+                if (gameOver) {
+                    const winner = playerScore === winningScore ? "Player" : "AI";
+                    drawText(`${winner} Wins!`, canvas.width / 2 - 100, canvas.height / 2, "#fff");
+                }
+            }
+
+            function resetBall() {
+                ball.x = (canvas.width - ball.size) / 2;
+                ball.y = (canvas.height - ball.size) / 2;
+                ball.dx = (Math.random() > 0.5 ? 1 : -1) * ball.speed;
+                ball.dy = (Math.random() > 0.5 ? 1 : -1) * ball.speed;
+            }
+
+            function update() {
+                if (gameOver) return;
+
+                ball.x += ball.dx;
+                ball.y += ball.dy;
+
+                if (ball.y <= 0 || ball.y + ball.size >= canvas.height) {
+                    ball.dy *= -1;
+                }
+
+                if (ball.x <= player.x + player.width && ball.x >= player.x && ball.y + ball.size >= player.y && ball.y <= player.y + player.height) {
+                    ball.dx *= -1;
+                    ball.x = player.x + player.width;
+                }
+
+                if (ball.x + ball.size >= ai.x && ball.x + ball.size <= ai.x + ai.width && ball.y + ball.size >= ai.y && ball.y <= ai.y + ai.height) {
+                    ball.dx *= -1;
+                    ball.x = ai.x - ball.size;
+                }
+
+                if (ball.x < 0) {
+                    aiScore++;
+                    resetBall();
+                } else if (ball.x > canvas.width) {
+                    playerScore++;
+                    resetBall();
+                }
+
+                if (playerScore === winningScore || aiScore === winningScore) {
+                    gameOver = true;
+                }
+
+                let aiCenter = ai.y + ai.height / 2;
+                if (aiCenter < ball.y + ball.size / 2) {
+                    ai.y += 4;
+                } else if (aiCenter > ball.y + ball.size / 2) {
+                    ai.y -= 4;
+                }
+
+                if (ai.y < 0) ai.y = 0;
+                if (ai.y + ai.height > canvas.height) ai.y = canvas.height - ai.height;
+            }
+
+            function gameLoop() {
+                update();
+                draw();
+                requestAnimationFrame(gameLoop);
+            }
+
+            canvas.addEventListener('mousemove', function(evt) {
+                let rect = canvas.getBoundingClientRect();
+                let mouseY = evt.clientY - rect.top;
+                player.y = mouseY - player.height / 2;
+
+                if (player.y < 0) player.y = 0;
+                if (player.y + player.height > canvas.height) player.y = canvas.height - player.height;
+            });
+
+            resetBall();
+            gameLoop();
+        });
+    </script>
+</body>
+</html>
