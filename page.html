@@ -1,11 +1,8 @@
-
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-  
   <meta charset="UTF-8">
-    <h1>Bienvenue sur arlecchino games!</h1>
-    <h3>la plateforme pour les arlecchino gameurs</h3>
+  <title>Arlecchino Games</title>
   <link rel="stylesheet" href="style.css">
   <style>
     body {
@@ -16,35 +13,60 @@
       min-height: 100vh;
       background: #222;
       color: #fff;
+      margin: 0;
+      padding: 0;
+    }
+    h1 {
+      font-size: 2.5rem;
+      margin-top: 2rem;
+      margin-bottom: 0.2rem;
+    }
+    h3 {
+      font-weight: 400;
+      margin-bottom: 2rem;
+      color: #00bfff;
+      letter-spacing: 1px;
     }
     .buttons {
       display: flex;
-      gap: 2rem;
+      flex-wrap: wrap;
+      gap: 1.5rem;
+      justify-content: center;
       margin-top: 2rem;
     }
     button {
       font-size: 1.5rem;
-      padding: 1rem 2rem;
+      padding: 1rem 2.2rem;
       border: none;
       border-radius: 10px;
       cursor: pointer;
       background: #00bfff;
       color: #fff;
-      transition: background 0.2s;
+      transition: background 0.2s, transform 0.2s;
+      box-shadow: 1px 2px 6px #0007;
+      min-width: 180px;
     }
     button:hover {
       background: #0077b6;
+      transform: scale(1.05);
     }
-    h1 {
-      font-size: 2.5rem;
+    @media (max-width: 600px) {
+      h1 { font-size: 1.4rem; }
+      h3 { font-size: 1rem; }
+      .buttons { gap: 0.7rem; }
+      button { font-size: 1rem; min-width: 120px; padding: 0.8rem 1.2rem; }
     }
   </style>
 </head>
 <body>
-  <div class="buttons">
-    <button onclick="window.location.href='snake-tablette.html'">Snake.js</button>
-    <button onclick="window.location.href='pong.html'">Pong.js</button>
-    <button onclick="window.location.href='jeu_surprise_avec_rejouer.html'">Guess the Number</button>
-  </div>
+    <h1>Bienvenue sur arlecchino games!</h1>
+    <h3>la plateforme pour les arlecchino gameurs</h3>
+    <div class="buttons">
+      <button onclick="window.location.href='snake-tablette.html'">Snake.js</button>
+      <button onclick="window.location.href='pong.html'">Pong.js</button>
+      <button onclick="window.location.href='jeu_surprise_avec_rejouer.html'">Guess the Number</button>
+      <button onclick="window.location.href='joke.html'">Joke.js</button>
+      <button onclick="window.location.href='pac.html'">Pac-Man</button>
+    </div>
 </body>
 </html>

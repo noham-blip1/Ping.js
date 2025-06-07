@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Random Joke Generator</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 2rem; background: #f9f9f9; }
+    #joke-box { background: #fff; padding: 1rem; border-radius: 8px; margin-bottom: 1rem; box-shadow: 0 2px 8px #0001; }
+    #joke-setup { font-weight: bold; }
+    #joke-punchline { margin-top: 0.5rem; color: #336699; }
+    button { padding: 0.5rem 1rem; font-size: 1rem; }
+  </style>
+</head>
+<body>
+  <h1>Random Joke Generator</h1>
+  <div id="joke-box">
+    <div id="joke-setup">Click the button for a joke!</div>
+    <div id="joke-punchline"></div>
+  </div>
+  <button id="joke-btn">Get Random Joke</button>
+
+  <script>
+    async function fetchJoke() {
+      const setupElem = document.getElementById('joke-setup');
+      const punchlineElem = document.getElementById('joke-punchline');
+      setupElem.textContent = 'Loading joke...';
+      punchlineElem.textContent = '';
+      try {
+        const res = await fetch('https://official-joke-api.appspot.com/random_joke');
+        if (!res.ok) throw new Error('Failed to fetch joke.');
+        const joke = await res.json();
+        setupElem.textContent = joke.setup;
+        punchlineElem.textContent = joke.punchline;
+      } catch (err) {
+        setupElem.textContent = 'Oops! Could not fetch a joke.';
+        punchlineElem.textContent = '';
+      }
+    }
+
+    document.getElementById('joke-btn').addEventListener('click', fetchJoke);
+  </script>
+</body>
+</html>

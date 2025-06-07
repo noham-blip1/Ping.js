@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Pac-Man Classic</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <button onclick="window.location.href='index.html'" style="position: absolute; top: 16px; left: 16px; z-index: 10; padding: 10px 20px; border-radius: 8px; background: #00bfff; color: #fff; border: none; font-size: 1rem; cursor: pointer;">Retour</button>
+  <h1 style="margin-top: 60px;">Pac-Man Classic</h1>
+  <div id="game-container">
+    <canvas id="game"></canvas>
+    <div id="controls">
+      <button id="up" aria-label="Up">▲</button>
+      <div>
+        <button id="left" aria-label="Left">◀</button>
+        <button id="down" aria-label="Down">▼</button>
+        <button id="right" aria-label="Right">▶</button>
+      </div>
+    </div>
+  </div>
+  <script src="pacman.js"></script>
+</body>
+</html>
