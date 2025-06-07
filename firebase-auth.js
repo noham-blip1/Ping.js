@@ -30,7 +30,7 @@ if (loginForm) {
 
     try {
       await signInWithEmailAndPassword(auth, email, password);
-      window.location.href = "index.html"; // Redirection après connexion
+      window.location.href = "page.html"; // Redirection après connexion
     } catch (error) {
       errorMsg.textContent = "Erreur : " + (error.code === "auth/user-not-found" ? "Utilisateur inconnu" : 
         error.code === "auth/wrong-password" ? "Mot de passe incorrect" : 
