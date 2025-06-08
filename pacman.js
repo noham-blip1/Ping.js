@@ -46,22 +46,19 @@ const pacman = {
   alive: true
 };
 
-const ghostColors = ["red", "pink", "cyan", "orange"];
-const ghostHomes = [ // À l'image classique
-  {x: 13, y: 11}, // rouge
-  {x: 14, y: 11}, // rose
-  {x: 13, y: 13}, // bleu
-  {x: 14, y: 13}, // orange
+const ghostHomes = [
+  {x: 13, y: 11},
+  {x: 14, y: 11},
+  {x: 13, y: 13},
+  {x: 14, y: 13},
 ];
-const ghosts = ghostColors.map((color,i) => ({
+const ghosts = [0, 1, 2, 3].map((_, i) => ({
   x: ghostHomes[i].x,
   y: ghostHomes[i].y,
-  color,
   dir: {x: 0, y: -1},
-  scatter: i, // Pour IA: chaque fantôme a sa zone de "scatter"
+  scatter: i,
   frightened: false,
   home: {...ghostHomes[i]},
-  name: ["Blinky","Pinky","Inky","Clyde"][i]
 }));
 
 let score = 0;
@@ -69,6 +66,7 @@ let win = false;
 let gameOver = false;
 let dotsLeft = 0;
 let frightTimer = 0;
+let ghostMoveTick = 0;
 
 // --- Responsive ---
 function resizeCanvas() {
@@ -84,25 +82,17 @@ function isWall(x, y) {
   if (y<0||y>=map.length||x<0||x>=map[0].length) return true;
   return map[y][x] === "#";
 }
-function isGhostHouse(x, y) {
-  // Centre du niveau : "cage des fantômes"
-  return (x>=11 && x<=16 && y>=11 && y<=14);
-}
 function isDot(x, y) {
   return map[y][x] === ".";
 }
 function isPower(x, y) {
   return map[y][x] === "P";
 }
-function isEmpty(x, y) {
-  return map[y][x] === " ";
-}
 
 // --- Dessin ---
 function drawMap() {
   for (let y = 0; y < map.length; y++) {
     for (let x = 0; x < map[y].length; x++) {
-      // Mur
       if (map[y][x] === "#") {
         ctx.fillStyle = "#2222cc";
         ctx.fillRect(x * tileSize, y * tileSize, tileSize, tileSize);
@@ -111,7 +101,6 @@ function drawMap() {
       } else {
         ctx.fillStyle = "#000";
         ctx.fillRect(x * tileSize, y * tileSize, tileSize, tileSize);
-        // Points
         if (map[y][x] === ".") {
           ctx.fillStyle = "#ffd700";
           ctx.beginPath();
@@ -133,7 +122,6 @@ function drawPacman() {
   ctx.save();
   ctx.fillStyle = pacman.color;
   ctx.beginPath();
-  // Bouche animée
   let angle = (Math.sin(Date.now()/100) + 1) * 0.15 + 0.15;
   let start = angle * Math.PI;
   let end = (2 - angle) * Math.PI;
@@ -157,33 +145,70 @@ function drawPacman() {
 
 function drawGhosts() {
   ghosts.forEach(g => {
-    ctx.save();
-    ctx.globalAlpha = g.frightened ? 0.7 : 1;
-    ctx.fillStyle = g.frightened ? "#33f" : g.color;
     let cx = g.x * tileSize + tileSize / 2;
     let cy = g.y * tileSize + tileSize / 2;
-    // Corps rond
+    const r = tileSize / 2 - 2;
+    // --- Corps moitié gauche (noir) ---
+    ctx.save();
     ctx.beginPath();
-    ctx.arc(cx, cy, tileSize/2-2, Math.PI, 0, false);
-    ctx.lineTo(cx + tileSize/2-2, cy + tileSize/2-4);
-    for(let i=2; i>=-2; i--) {
+    ctx.arc(cx, cy, r, Math.PI, 0, false);
+    ctx.lineTo(cx + r, cy + r);
+    ctx.lineTo(cx, cy + r);
+    ctx.lineTo(cx, cy - r);
+    ctx.closePath();
+    ctx.clip();
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, Math.PI, 0, false);
+    for (let i = 2; i >= -2; i--) {
       ctx.quadraticCurveTo(
-        cx + (i-0.5)*(tileSize/5), cy + tileSize/2-2 - ((i%2)*6),
-        cx + i*(tileSize/5), cy + tileSize/2-2
+        cx + (i - 0.5) * (tileSize / 5), cy + r - ((i % 2) * 6),
+        cx + i * (tileSize / 5), cy + r
       );
     }
     ctx.closePath();
+    ctx.fillStyle = "#111";
     ctx.fill();
-    // Yeux
+    ctx.restore();
+
+    // --- Corps moitié droite (rouge) ---
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, Math.PI, 0, false);
+    ctx.lineTo(cx + r, cy + r);
+    ctx.lineTo(cx, cy + r);
+    ctx.lineTo(cx, cy - r);
+    ctx.closePath();
+    ctx.clip();
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, Math.PI, 0, false);
+    for (let i = 2; i >= -2; i--) {
+      ctx.quadraticCurveTo(
+        cx + (i - 0.5) * (tileSize / 5), cy + r - ((i % 2) * 6),
+        cx + i * (tileSize / 5), cy + r
+      );
+    }
+    ctx.closePath();
+    ctx.beginPath();
+    ctx.rect(cx, cy - r, r, tileSize); // moitié droite seulement
+    ctx.closePath();
+    ctx.fillStyle = "#c23d2a";
+    ctx.globalAlpha = g.frightened ? 0.7 : 1;
+    ctx.fill('evenodd');
+    ctx.restore();
+
+    // --- Yeux (toujours sur le dessus) ---
+    // Oeil gauche
+    ctx.save();
     ctx.fillStyle = "#fff";
     ctx.beginPath();
-    ctx.arc(cx-tileSize/6, cy-tileSize/8, tileSize/8, 0, 2*Math.PI);
-    ctx.arc(cx+tileSize/6, cy-tileSize/8, tileSize/8, 0, 2*Math.PI);
+    ctx.arc(cx - tileSize / 6, cy - tileSize / 8, tileSize / 8, 0, 2 * Math.PI);
+    ctx.arc(cx + tileSize / 6, cy - tileSize / 8, tileSize / 8, 0, 2 * Math.PI);
     ctx.fill();
-    ctx.fillStyle = "#00f";
+    // Pupilles
+    ctx.fillStyle = "#111";
     ctx.beginPath();
-    ctx.arc(cx-tileSize/6, cy-tileSize/8, tileSize/16, 0, 2*Math.PI);
-    ctx.arc(cx+tileSize/6, cy-tileSize/8, tileSize/16, 0, 2*Math.PI);
+    ctx.arc(cx - tileSize / 6 + 3, cy - tileSize / 8 + 3, tileSize / 16, 0, 2 * Math.PI);
+    ctx.arc(cx + tileSize / 6 + 3, cy - tileSize / 8 + 3, tileSize / 16, 0, 2 * Math.PI);
     ctx.fill();
     ctx.restore();
   });
@@ -232,7 +257,6 @@ canvas.addEventListener('touchstart', e => {
 
 // --- Déplacement ---
 function movePacman() {
-  // Changement de direction si possible
   if (!isWall(pacman.x + pacman.nextDir.x, pacman.y + pacman.nextDir.y)) {
     pacman.dir = {...pacman.nextDir};
   }
@@ -241,7 +265,6 @@ function movePacman() {
   if (!isWall(newX, newY)) {
     pacman.x = newX;
     pacman.y = newY;
-    // téléportation tunnel
     if (pacman.x < 0) pacman.x = map[0].length-1;
     if (pacman.x >= map[0].length) pacman.x = 0;
   }
@@ -269,9 +292,7 @@ function eatDot() {
 // --- Fantômes IA ---
 function moveGhosts() {
   ghosts.forEach((g, idx) => {
-    // Mode frightened ?
     if (frightTimer > 0) {
-      // Mouvement aléatoire
       let possible = [];
       const dirs = [
         {x:1,y:0}, {x:-1,y:0}, {x:0,y:1},{x:0,y:-1}
@@ -287,29 +308,24 @@ function moveGhosts() {
       }
     } else {
       g.frightened = false;
-      // Mode normal : chaque fantôme a un comportement différent
       let target = {x: pacman.x, y: pacman.y};
-      if (idx === 1) { // Pinky
-        // Prédit la position de Pac-Man
+      if (idx === 1) {
         target = {
           x: pacman.x + 4*pacman.dir.x,
           y: pacman.y + 4*pacman.dir.y
         };
       }
-      if (idx === 2) { // Inky
-        // Prend une zone opposée à Blinky
+      if (idx === 2) {
         let blinky = ghosts[0];
         target = {
           x: pacman.x + (pacman.x - blinky.x),
           y: pacman.y + (pacman.y - blinky.y)
         };
       }
-      if (idx === 3) { // Clyde
-        // S'éloigne si proche, poursuit sinon
+      if (idx === 3) {
         let dist = Math.abs(g.x - pacman.x) + Math.abs(g.y - pacman.y);
         if (dist < 8) target = {x: 0, y: map.length-1};
       }
-      // Choix du mouvement : cherche la direction qui rapproche le plus de la cible
       let bestDir = g.dir, minDist = Infinity;
       const dirs = [
         {x:1,y:0}, {x:-1,y:0}, {x:0,y:1},{x:0,y:-1}
@@ -327,12 +343,10 @@ function moveGhosts() {
       g.dir = bestDir;
       g.x += g.dir.x;
       g.y += g.dir.y;
-      // Tunnel
       if (g.x < 0) g.x = map[0].length-1;
       if (g.x >= map[0].length) g.x = 0;
     }
   });
-  // Décrémenter le mode frightened
   if (frightTimer > 0) {
     frightTimer--;
     if (frightTimer === 0) ghosts.forEach(g => g.frightened = false);
@@ -363,7 +377,10 @@ function gameLoop(ts) {
   if (dt > 95 && !gameOver) {
     movePacman();
     eatDot();
-    moveGhosts();
+    ghostMoveTick++;
+    if (ghostMoveTick % 2 === 0) {
+      moveGhosts();
+    }
     checkCollision();
     lastTime = ts;
   }
@@ -386,6 +403,7 @@ function restartGame() {
   gameOver = false;
   frightTimer = 0;
   dotsLeft = 0;
+  ghostMoveTick = 0;
   for (let y=0;y<map.length;y++) for (let x=0;x<map[0].length;x++) if (isDot(x,y)||isPower(x,y)) dotsLeft++;
   lastTime = 0;
 }
